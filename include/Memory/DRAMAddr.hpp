@@ -10,36 +10,32 @@
 #include <string>
 #include <vector>
 
+struct MemConfiguration; // forward declaration needed to break include cycle
+
 #ifdef ENABLE_JSON
 #include <nlohmann/json.hpp>
 #endif
 
-#define CHANS(x) ((x) << (8UL * 3UL))
-#define DIMMS(x) ((x) << (8UL * 2UL))
-#define RANKS(x) ((x) << (8UL * 1UL))
-#define BANKS(x) ((x) << (8UL * 0UL))
+#include "Utilities/BlacksmithConfig.hpp"
 
-#define MTX_SIZE (30)
-
-typedef size_t mem_config_t;
+#define MTX_SIZE (30U)
 
 struct MemConfiguration {
-  size_t IDENTIFIER;
   size_t BK_SHIFT;
   size_t BK_MASK;
   size_t ROW_SHIFT;
   size_t ROW_MASK;
   size_t COL_SHIFT;
   size_t COL_MASK;
-  size_t DRAM_MTX[MTX_SIZE];
-  size_t ADDR_MTX[MTX_SIZE];
+  std::array<size_t, MTX_SIZE> DRAM_MTX;
+  std::array<size_t, MTX_SIZE> ADDR_MTX;
 };
 
 class DRAMAddr {
  private:
   // Class attributes
-  static std::map<size_t, MemConfiguration> Configs;
   static MemConfiguration MemConfig;
+  static BlacksmithConfig *Config;
   static size_t base_msb;
 
   [[nodiscard]] size_t linearize() const;
@@ -52,7 +48,7 @@ class DRAMAddr {
   // class methods
   static void set_base_msb(void *buff);
 
-  static void load_mem_config(mem_config_t cfg);
+  static void set_config(BlacksmithConfig &config);
 
   // instance methods
   DRAMAddr(size_t bk, size_t r, size_t c);
@@ -66,7 +62,7 @@ class DRAMAddr {
 
   [[gnu::unused]] std::string to_string();
 
-  static void initialize(uint64_t num_bank_rank_functions, volatile char *start_address);
+  static void initialize(volatile char *start_address);
 
   [[nodiscard]] std::string to_string_compact() const;
 
@@ -76,11 +72,26 @@ class DRAMAddr {
 
   void add_inplace(size_t bank_increment, size_t row_increment, size_t column_increment);
 
+  static size_t get_bank_count() {
+    if (Config == NULL) {
+      throw std::logic_error("Config not yet initialized");
+    }
+    return 1ULL << __builtin_popcountl(MemConfig.BK_MASK);
+  }
+
+  static size_t get_row_count() {
+    if (Config == NULL) {
+      throw std::logic_error("Config not yet initialized");
+    }
+
+    size_t row_count = 1ULL << __builtin_popcountl(MemConfig.ROW_MASK);
+    return row_count;
+  }
+
 #ifdef ENABLE_JSON
   static nlohmann::json get_memcfg_json();
 #endif
 
-  static void initialize_configs();
 };
 
 #ifdef ENABLE_JSON

@@ -26,6 +26,8 @@ class Memory {
   // the mount point of the huge pages filesystem
   const std::string hugetlbfs_mountpoint = "/mnt/huge/buff";
 
+  BlacksmithConfig &config;
+
   // the size of the allocated memory area in bytes
   uint64_t size;
 
@@ -36,15 +38,16 @@ class Memory {
                                const volatile char *end, bool reproducibility_mode, bool verbose);
 
  public:
+  [[nodiscard]] uint64_t get_size() const;
 
   // the flipped bits detected during the last call to check_memory
   std::vector<BitFlip> flipped_bits;
 
-  explicit Memory(bool use_superpage);
+  Memory(BlacksmithConfig &config, bool use_superpage);
 
   ~Memory();
 
-  void allocate_memory(size_t mem_size);
+  void allocate_memory();
 
   void initialize(DATA_PATTERN data_pattern);
 

@@ -3,10 +3,6 @@
 #include "Utilities/TimeHelper.hpp"
 #include "Blacksmith.hpp"
 
-/// Performs hammering on given aggressor rows for HAMMER_ROUNDS times.
-void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors) {
-  hammer(aggressors, HAMMER_ROUNDS);
-}
 
 void TraditionalHammerer::hammer(std::vector<volatile char *> &aggressors, size_t reps) {
   for (size_t i = 0; i < reps; i++) {
@@ -31,7 +27,7 @@ void TraditionalHammerer::hammer_flush_early(std::vector<volatile char *> &aggre
 }
 
 /// Performs synchronized hammering on the given aggressor rows.
-void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, int acts,
+void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, size_t reps, int acts,
                                       volatile char *d1, volatile char *d2) {
   size_t ref_rounds = std::max(1UL, acts/aggressors.size());
 
@@ -59,7 +55,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 
   // perform hammering for HAMMER_ROUNDS/ref_rounds times
-  for (size_t i = 0; i < HAMMER_ROUNDS/ref_rounds; i++) {
+  for (size_t i = 0; i < reps/ref_rounds; i++) {
     for (size_t j = 0; j < agg_rounds; j++) {
       for (size_t k = 0; k < aggressors.size() - 2; k++) {
         (void)(*aggressors[k]);
@@ -86,7 +82,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 }
 
-[[maybe_unused]] void TraditionalHammerer::n_sided_hammer_experiment(Memory &memory, int acts) {
+[[maybe_unused]] void TraditionalHammerer::n_sided_hammer_experiment(BlacksmithConfig &config, Memory &memory, size_t reps, int acts) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
@@ -181,7 +177,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
         if (!program_args.use_synchronization) {
           // CONVENTIONAL HAMMERING
           Logger::log_info(format_string("Hammering %d aggressors on bank %d", num_aggs, TARGET_BANK));
-          hammer(aggressors);
+          hammer(aggressors, reps);
         } else if (program_args.use_synchronization) {
           // SYNCHRONIZED HAMMERING
           // uses one dummy that are hammered repeatedly until the refresh is detected
@@ -195,7 +191,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
                   d2.row, d2.to_virt()));
 
           Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", num_aggs, TARGET_BANK));
-          hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
+          hammer_sync(aggressors, reps, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
         }
 
         // check 20 rows before and after the placed aggressors for flipped bits
@@ -238,7 +234,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   meta["start"] = start_ts;
   meta["end"] = get_timestamp_sec();
   meta["memory_config"] = DRAMAddr::get_memcfg_json();
-  meta["dimm_id"] = program_args.dimm_id;
+  meta["name"] = config.name;
   meta["acts_per_tref"] = acts;
   meta["seed"] = start_ts;
 
@@ -251,14 +247,15 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
 #endif
 }
 
-[[maybe_unused]] void TraditionalHammerer::n_sided_hammer(Memory &memory, int acts, long runtime_limit) {
+[[maybe_unused]] void
+TraditionalHammerer::n_sided_hammer(BlacksmithConfig &config, Memory &memory, int acts, long runtime_limit) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<size_t> dist(0, std::numeric_limits<size_t>::max());
 
   const auto execution_limit = get_timestamp_sec() + runtime_limit;
   while (get_timestamp_sec() < execution_limit) {
-    size_t aggressor_rows_size = (dist(gen)%(MAX_ROWS - 3)) + 3;  // number of aggressor rows
+    size_t aggressor_rows_size = (dist(gen)%(config.max_rows - 3)) + 3;  // number of aggressor rows
     size_t v = 2;  // distance between aggressors (within a pair)
     size_t d = dist(gen)%16;  // distance of each double-sided aggressor pair
 
@@ -289,7 +286,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
         // CONVENTIONAL HAMMERING
         Logger::log_info(format_string("Hammering %d aggressors with v=%d d=%d on bank %d",
             aggressor_rows_size, v, d, ba));
-        hammer(aggressors);
+        hammer(aggressors, config.hammer_rounds);
       } else if (program_args.use_synchronization) {
         // SYNCHRONIZED HAMMERING
         // uses two dummies that are hammered repeatedly until the refresh is detected
@@ -304,7 +301,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
               acts - ((acts/aggressors.size())*aggressors.size())));
         }
         Logger::log_info(format_string("Hammering sync %d aggressors on bank %d", aggressor_rows_size, ba));
-        hammer_sync(aggressors, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
+        hammer_sync(aggressors, config.hammer_rounds, acts, (volatile char *) d1.to_virt(), (volatile char *) d2.to_virt());
       }
 
       // check 100 rows before and after for flipped bits
@@ -313,7 +310,7 @@ void TraditionalHammerer::hammer_sync(std::vector<volatile char *> &aggressors, 
   }
 }
 
-void TraditionalHammerer::n_sided_hammer_experiment_frequencies(Memory &memory) {
+void TraditionalHammerer::n_sided_hammer_experiment_frequencies(BlacksmithConfig &config, Memory &memory) {
 #ifdef ENABLE_JSON
   nlohmann::json root;
   nlohmann::json all_results = nlohmann::json::array();
@@ -375,7 +372,7 @@ for (size_t r = 0; r < 10; ++ r) {
 
   // randomly choose two aggressors
   auto agg1 = DRAMAddr(
-      Range<size_t>(0, NUM_BANKS-1).get_random_number(gen),
+      Range<size_t>(0, config.total_banks-1).get_random_number(gen),
       Range<size_t>(0, MAX_ROW-1).get_random_number(gen),
       0);
   auto agg2 = DRAMAddr(agg1.bank, agg1.row + 2, 0);
@@ -420,7 +417,7 @@ for (size_t r = 0; r < 10; ++ r) {
     for (size_t drd = 0; drd < dummy_rounds; ++drd) {
 //      aggressors.push_back((volatile char *) dmy1.to_virt());
 //      aggressors.push_back((volatile char *) dmy2.to_virt());
-      auto dmy = DRAMAddr(Range<size_t>(0, NUM_BANKS - 1).get_random_number(gen),
+      auto dmy = DRAMAddr(Range<size_t>(0, config.total_banks - 1).get_random_number(gen),
           Range<size_t>(0, MAX_ROW - 1).get_random_number(gen),
           0);
       aggressors.push_back((volatile char *) dmy.to_virt());
@@ -477,7 +474,7 @@ for (size_t r = 0; r < 10; ++ r) {
   meta["start"] = start_ts;
   meta["end"] = get_timestamp_sec();
   meta["memory_config"] = DRAMAddr::get_memcfg_json();
-  meta["dimm_id"] = program_args.dimm_id;
+  meta["name"] = config.name;
   meta["seed"] = start_ts;
 
   root["metadata"] = meta;

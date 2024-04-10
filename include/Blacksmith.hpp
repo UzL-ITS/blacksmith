@@ -9,10 +9,10 @@
 struct ProgramArguments {
   // the duration of the fuzzing run in second
   unsigned long runtime_limit = 120;
-  // the number of ranks of the DIMM to hammer
-  int num_ranks = 0;
-  // no. of activations we can do within a refresh interval
-  size_t acts_per_trefi = 0;
+  // path to logfile
+  std::string logfile = "/dev/stdout";
+  // path to JSON config
+  std::string config;
   // path to JSON file to load
   std::string load_json_filename;
   // the IDs of the patterns to be loaded from a given JSON file
@@ -23,12 +23,10 @@ struct ProgramArguments {
   size_t num_dram_locations_per_mapping = 3;
   // whether to sweep the 'best pattern' that was found during fuzzing afterward over a contiguous chunk of memory
   bool sweeping = false;
-  // the ID of the DIMM that is currently inserted
-  long dimm_id = -1;
   // these two parameters define the default program mode: do fuzzing and synchronize with REFRESH
   bool do_fuzzing = true;
   bool use_synchronization = true;
-  bool fixed_acts_per_ref = false;
+  size_t generate_patterns = 0;
 };
 
 extern ProgramArguments program_args;
@@ -37,6 +35,6 @@ int main(int argc, char **argv);
 
 void handle_args(int argc, char **argv);
 
-[[ noreturn ]] void handle_arg_generate_patterns(int num_activations, size_t probes_per_pattern);
+int handle_arg_generate_patterns(BlacksmithConfig &config, size_t num_activations, size_t probes_per_pattern);
 
 #endif //BLACKSMITH_INCLUDE_BLACKSMITH_HPP_

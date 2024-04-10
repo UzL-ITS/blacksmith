@@ -4,7 +4,7 @@ project(blacksmith VERSION 0.0.1 LANGUAGES CXX)
 # === OPTIONS ==================================================================
 
 set(
-        BLACKSMITH_ENABLE_JSON
+        BLACKSMITH_ENABLE_JSON_EXPORT
         ON
         CACHE BOOL
         "Use the nlohmann/json library to export JSON-formatted fuzzing data."
@@ -69,6 +69,7 @@ add_library(
         src/Memory/Memory.cpp
         src/Utilities/Enums.cpp
         src/Utilities/Logger.cpp
+        src/Utilities/BlacksmithConfig.cpp
 )
 
 target_include_directories(
@@ -95,13 +96,13 @@ target_compile_options(
         -Wno-format-security
 )
 
-if (BLACKSMITH_ENABLE_JSON)
-    target_link_libraries(
-            bs
-            PUBLIC
-            nlohmann_json::nlohmann_json
-    )
+target_link_libraries(
+        bs
+        PUBLIC
+        nlohmann_json::nlohmann_json
+)
 
+if (BLACKSMITH_ENABLE_JSON_EXPORT)
     target_compile_definitions(
             bs
             PUBLIC
@@ -133,6 +134,12 @@ if (BLACKSMITH_ENABLE_JITTING)
     )
 endif ()
 
+target_link_libraries(
+        bs
+        PUBLIC
+        Eigen3::Eigen
+)
+
 # === BLACKSMITH ===============================================================
 
 add_executable(
@@ -154,7 +161,44 @@ target_link_libraries(
         argagg
 )
 
+# === DetermineConflictTiming Tool # === BLACKSMITH ============================
+
+add_executable(
+        determineConflictThresh
+        src/DetermineConflictThresh.cpp
+)
+
+target_link_libraries(
+        determineConflictThresh
+        PRIVATE
+        bs
+        argagg
+)
+
+add_executable(
+        determineActsPerRef
+        src/DetermineActsPerRef.cpp
+)
+
+target_link_libraries(
+        determineActsPerRef
+        PRIVATE
+        bs
+        argagg
+)
+
+add_executable(
+        checkAddrFunction
+        src/CheckAddrFunction.cpp
+)
+
+target_link_libraries(
+        checkAddrFunction
+        PRIVATE
+        bs
+        argagg
+)
 # === CLEANUP ==================================================================
 
-unset(BLACKSMITH_ENABLE_JSON CACHE)
+unset(BLACKSMITH_ENABLE_JSON_EXPORT CACHE)
 unset(BLACKSMITH_ENABLE_JITTING CACHE)

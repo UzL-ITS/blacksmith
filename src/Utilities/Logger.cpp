@@ -8,10 +8,8 @@ Logger Logger::instance; /* NOLINT */
 
 Logger::Logger() = default;
 
-void Logger::initialize() {
+void Logger::initialize(const std::string &logfile_filename) {
   instance.logfile = std::ofstream();
-
-  std::string logfile_filename = "stdout.log";
   std::cout << "Writing into logfile " FF_BOLD << logfile_filename << F_RESET << std::endl;
   // we need to open the log file in append mode because the run_benchmark script writes values into it
   instance.logfile.open(logfile_filename, std::ios::out | std::ios::app);
@@ -26,24 +24,24 @@ void Logger::close() {
 void Logger::log_info(const std::string &message, bool newline) {
   instance.logfile << FC_CYAN "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_highlight(const std::string &message, bool newline) {
   instance.logfile << FC_MAGENTA << FF_BOLD << "[+] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_error(const std::string &message, bool newline) {
   instance.logfile << FC_RED "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_data(const std::string &message, bool newline) {
   instance.logfile << message;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_analysis_stage(const std::string &message, bool newline) {
@@ -54,9 +52,10 @@ void Logger::log_analysis_stage(const std::string &message, bool newline) {
   while (remaining_chars--) ss << "█";
   instance.logfile << ss.str();
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
+#define DEBUG
 void Logger::log_debug(const std::string &message, bool newline) {
 #ifdef DEBUG
   instance.logfile << FC_YELLOW "[DEBUG] " << message;
@@ -98,50 +97,42 @@ void Logger::log_bitflip(volatile char *flipped_address, uint64_t row_no, unsign
                    << std::hex << "from " << (int) expected_value << " to " << (int) actual_value << ", "
                    << std::dec << "detected after " << format_timestamp(timestamp - instance.timestamp_start) << ".";
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_success(const std::string &message, bool newline) {
   instance.logfile << FC_GREEN << "[!] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
 void Logger::log_failure(const std::string &message, bool newline) {
   instance.logfile << FC_RED_BRIGHT << "[-] " << message;
   instance.logfile << F_RESET;
-  if (newline) instance.logfile << "\n";
+  if (newline) instance.logfile << std::endl;
 }
 
-void Logger::log_metadata(const char *commit_hash, unsigned long run_time_limit_seconds) {
+void Logger::log_metadata(const char *commit_hash, BlacksmithConfig &config, unsigned long run_time_limit_seconds) {
   Logger::log_info("General information about this fuzzing run:");
 
   char name[1024] = "";
   gethostname(name, sizeof name);
 
   std::stringstream ss;
-  ss << "Start timestamp:: " << instance.timestamp_start << "\n"
-     << "Hostname: " << name << "\n"
-     << "Commit SHA: " << commit_hash << "\n"
+  ss << "Start timestamp:: " << instance.timestamp_start << std::endl
+     << "Hostname: " << name << std::endl
+     << "Commit SHA: " << commit_hash << std::endl
      << "Run time limit: " << run_time_limit_seconds << " (" << format_timestamp(run_time_limit_seconds) << ")";
   Logger::log_data(ss.str());
 
-  log_global_defines();
+  log_config(config);
 }
 
-void Logger::log_global_defines() {
-  Logger::log_info("Printing run configuration (GlobalDefines.hpp):");
+void Logger::log_config(BlacksmithConfig &config) {
+  Logger::log_info("Printing run configuration:");
   std::stringstream ss;
-  ss << "DRAMA_ROUNDS: " << DRAMA_ROUNDS << "\n"
-     << "CACHELINE_SIZE: " << CACHELINE_SIZE << "\n"
-     << "HAMMER_ROUNDS: " << HAMMER_ROUNDS << "\n"
-     << "THRESH: " << THRESH << "\n"
-     << "NUM_TARGETS: " << NUM_TARGETS << "\n"
-     << "MAX_ROWS: " << MAX_ROWS << "\n"
-     << "NUM_BANKS: " << NUM_BANKS << "\n"
-     << "DIMM: " << DIMM << "\n"
-     << "CHANNEL: " << CHANNEL << "\n"
-     << "MEM_SIZE: " << MEM_SIZE << "\n"
+  nlohmann::json json = config;
+  ss << "Config:" << json.dump() << std::endl
      << "PAGE_SIZE: " << getpagesize() << std::endl;
   Logger::log_data(ss.str());
 }

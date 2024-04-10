@@ -61,22 +61,37 @@ endif()
 
 # === NLOHMANN/JSON ============================================================
 
-if (BLACKSMITH_ENABLE_JSON)
-    message(STATUS "Fetching external dependency nlohmann/json")
-    set(MESSAGE_QUIET ON)
+message(STATUS "Fetching external dependency nlohmann/json")
+set(MESSAGE_QUIET ON)
 
-    FetchContent_Declare(
-            json
-            GIT_REPOSITORY https://github.com/nlohmann/json.git
-            GIT_TAG v3.9.1
-    )
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.9.1
+)
 
-    FetchContent_GetProperties(json)
-    if (NOT json_POPULATED)
-        FetchContent_Populate(json)
-        add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
-    endif ()
+FetchContent_GetProperties(json)
+if (NOT json_POPULATED)
+    FetchContent_Populate(json)
+    add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif ()
 
-    set(MESSAGE_QUIET OFF)
-    message(STATUS "Fetching external dependency nlohmann/json -- done!")
-endif()
+set(MESSAGE_QUIET OFF)
+message(STATUS "Fetching external dependency nlohmann/json -- done!")
+
+# === Eigen ===================================================================
+
+FetchContent_Declare(
+        Eigen
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE)
+set(EIGEN_BUILD_DOC OFF)
+# note: To disable eigen tests,
+# you should put this code in a add_subdirectory to avoid to change
+# BUILD_TESTING for your own project too since variables are directory
+# scoped
+set(BUILD_TESTING OFF)
+set(EIGEN_BUILD_PKGCONFIG OFF)
+FetchContent_MakeAvailable(Eigen)

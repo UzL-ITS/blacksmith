@@ -3,8 +3,8 @@
 #include <sys/mman.h>
 
 /// Allocates a MEM_SIZE bytes of memory by using super or huge pages.
-void Memory::allocate_memory(size_t mem_size) {
-  this->size = mem_size;
+void Memory::allocate_memory() {
+  this->size = MEM_SIZE;
   volatile char *target = nullptr;
   FILE *fp;
 
@@ -90,7 +90,7 @@ size_t Memory::check_memory(PatternAddressMapper &mapping, bool reproducibility_
 size_t Memory::check_memory(const volatile char *start, const volatile char *end) {
   flipped_bits.clear();
   // create a "fake" pattern mapping to keep this method for backward compatibility
-  PatternAddressMapper pattern_mapping;
+  PatternAddressMapper pattern_mapping(config.total_banks);
   return check_memory_internal(pattern_mapping, start, end, false, true);
 }
 
@@ -201,7 +201,7 @@ size_t Memory::check_memory_internal(PatternAddressMapper &mapping,
   return found_bitflips;
 }
 
-Memory::Memory(bool use_superpage) : size(0), superpage(use_superpage) {
+Memory::Memory(BlacksmithConfig &config, bool use_superpage) : config(config), size(0), superpage(use_superpage) {
 }
 
 Memory::~Memory() {
@@ -231,4 +231,6 @@ std::string Memory::get_flipped_rows_text_repr() {
   return ss.str();
 }
 
-
+uint64_t Memory::get_size() const {
+  return size;
+}

@@ -23,6 +23,9 @@ struct SweepSummary {
 
 class ReplayingHammerer {
  private:
+  // the current run configuration
+  BlacksmithConfig &config;
+
   // the Memory instance for hammering
   Memory &mem;
 
@@ -75,7 +78,7 @@ class ReplayingHammerer {
                                   std::unordered_set<AggressorAccessPattern> &indirect_effective_aggs);
  public:
 
-  explicit ReplayingHammerer(Memory &mem);
+  explicit ReplayingHammerer(BlacksmithConfig &config, Memory &mem);
 
   void set_params(const FuzzingParameterSet &fuzzParams);
 

@@ -29,9 +29,10 @@ class FuzzyHammerer {
 
   static void do_random_accesses(const std::vector<volatile char *>& random_rows, int duration_us);
 
-  static void n_sided_frequency_based_hammering(DramAnalyzer &dramAnalyzer, Memory &memory, int acts,
-                                                unsigned long runtime_limit, size_t probes_per_pattern,
-                                                bool sweep_best_pattern);
+  static void
+  n_sided_frequency_based_hammering(BlacksmithConfig &config, DramAnalyzer &dramAnalyzer, Memory &memory,
+                                    uint64_t acts, bool fixed_acts_per_ref,
+                                    unsigned long runtime_limit, size_t probes_per_pattern, bool sweep_best_pattern);
 
   static void test_location_dependence(ReplayingHammerer &rh, HammeringPattern &pattern);
 
@@ -41,7 +42,11 @@ class FuzzyHammerer {
   static void log_overall_statistics(size_t cur_round, const std::string &best_mapping_id,
                                      size_t best_mapping_num_bitflips, size_t num_effective_patterns);
 
-  static void generate_pattern_for_ARM(int acts, int *rows_to_access, int max_accesses, const size_t probes_per_pattern);
+  static void generate_pattern_for_ARM(BlacksmithConfig &config,
+                                       size_t acts,
+                                       int *rows_to_access,
+                                       int max_accesses,
+                                       size_t probes_per_pattern);
 };
 
 #endif //BLACKSMITH_SRC_FORGES_FUZZYHAMMERER_HPP_

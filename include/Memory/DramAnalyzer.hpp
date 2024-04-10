@@ -11,51 +11,44 @@
 #include <random>
 
 #include "Utilities/AsmPrimitives.hpp"
+#include "Utilities/BlacksmithConfig.hpp"
 
 class DramAnalyzer {
  private:
-  std::vector<std::vector<volatile char *>> banks;
-
-  std::vector<uint64_t> bank_rank_functions;
-
-  uint64_t row_function;
+  BlacksmithConfig &config;
 
   volatile char *start_address;
-
-  void find_targets(std::vector<volatile char *> &target_bank);
 
   std::mt19937 gen;
 
   std::uniform_int_distribution<int> dist;
 
  public:
-  explicit DramAnalyzer(volatile char *target);
-
-  /// Finds addresses of the same bank causing bank conflicts when accessed sequentially
-  void find_bank_conflicts();
+  explicit DramAnalyzer(BlacksmithConfig &config, volatile char *target);
 
   /// Measures the time between accessing two addresses.
-  static int inline measure_time(volatile char *a1, volatile char *a2) {
-    uint64_t before, after;
-    before = rdtscp();
-    lfence();
-    for (size_t i = 0; i < DRAMA_ROUNDS; i++) {
-      (void)*a1;
-      (void)*a2;
+  static inline uint64_t measure_time(volatile char *a1, volatile char *a2, size_t rounds) {
+    uint64_t before, after, sum;
+    sum = 0;
+
+    for (size_t i = 0; i < rounds; i++) {
+      mfence();
+      before = rdtscp();
+      *a1;
+      *a2;
+      after = rdtscp();
+      mfence();
+      sum += after-before;
       clflushopt(a1);
       clflushopt(a2);
-      mfence();
     }
-    after = rdtscp();
-    return (int) ((after - before)/DRAMA_ROUNDS);
+    return sum / rounds;
   }
-
-  std::vector<uint64_t> get_bank_rank_functions();
-
-  void load_known_functions(int num_ranks);
 
   /// Determine the number of possible activations within a refresh interval.
   size_t count_acts_per_trefi();
+
+  static size_t count_acts_per_trefi(volatile char *a, volatile char*b);
 };
 
 #endif /* DRAMANALYZER */
